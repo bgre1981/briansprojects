@@ -1,0 +1,191 @@
+
+SELECT * 
+FROM Homes..homedata
+
+SELECT SaleDate, CONVERT(Date, SaleDate) converted
+FROM Homes..homedata
+
+UPDATE Homes..homedata
+SET SaleDate = CONVERT(Date, SaleDate)
+
+ALTER TABLE Homes..homedata
+ADD Saledateconverted Date;
+
+UPDATE Homes..homedata
+SET Saledateconverted = CONVERT(date, SaleDate)
+
+SELECT Saledateconverted
+FROM Homes..homedata
+
+------------------------------------
+--populate property address data
+
+SELECT PropertyAddress
+FROM Homes..homedata
+
+
+SELECT PropertyAddress
+FROM Homes..homedata
+WHERE PropertyAddress IS NULL
+
+SELECT *
+FROM Homes..homedata
+---WHERE PropertyAddress IS NULL
+ORDER BY ParcelID
+
+
+
+SELECT a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress
+FROM Homes..homedata a
+JOIN Homes..homedata b
+on a.ParcelID = b.ParcelID
+AND a.[UniqueID] <> b.[UniqueID]
+
+
+SELECT a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, ISNULL(a.PropertyAddress, b.PropertyAddress)
+FROM Homes..homedata a
+JOIN Homes..homedata b
+on a.ParcelID = b.ParcelID
+AND a.[UniqueID] <> b.[UniqueID]
+WHERE a.PropertyAddress IS NULL
+
+UPDATE a
+SET PropertyAddress = ISNULL(a.PropertyAddress, b.PropertyAddress)
+FROM Homes..homedata a
+JOIN Homes..homedata b
+on a.ParcelID = b.ParcelID
+AND a.[UniqueID] <> b.[UniqueID]
+WHERE a.PropertyAddress IS NULL
+
+---------------------------------------------
+--breaking out address into individual columns
+
+SELECT PropertyAddress 
+FROM Homes..homedata
+--WHERE PropertyAddress IS NULL
+--ORDER BY ParcelID
+
+
+SELECT
+SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1) as Address,
+SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) +1, LEN(PropertyAddress)) as Address
+FROM Homes..homedata
+
+ALTER TABLE Homes..homedata
+ADD PropertySplitAddress NVARCHAR(255);
+
+UPDATE Homes..homedata
+SET PropertySplitAddress = SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1)
+
+
+ALTER TABLE Homes..homedata
+ADD PropertySplitCity NVARCHAR(255);
+
+
+UPDATE Homes..homedata
+SET PropertySplitCity = SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) +1, LEN(PropertyAddress))
+
+SELECT * 
+FROM Homes..homedata
+
+
+SELECT OwnerAddress
+FROM Homes..homedata
+
+
+SELECT PARSENAME(REPLACE(OwnerAddress, ',', '.'), 3),
+PARSENAME(REPLACE(OwnerAddress, ',', '.'), 2),
+PARSENAME(REPLACE(OwnerAddress, ',', '.'), 1)
+FROM Homes..homedata
+
+
+
+
+ALTER TABLE Homes..homedata
+ADD OwnerSplitAddress NVARCHAR(255);
+
+UPDATE Homes..homedata
+SET OwnerSplitAddress = PARSENAME(REPLACE(OwnerAddress, ',', '.'), 3)
+
+
+ALTER TABLE Homes..homedata
+ADD OwnerSplitCity NVARCHAR(255);
+
+
+UPDATE Homes..homedata
+SET OwnerSplitCity = PARSENAME(REPLACE(OwnerAddress, ',', '.'), 2)
+
+ALTER TABLE Homes..homedata
+ADD OwnerSplitState NVARCHAR(255);
+
+
+UPDATE Homes..homedata
+SET OwnerSplitState = PARSENAME(REPLACE(OwnerAddress, ',', '.'), 1)
+
+
+--------------------------
+--Change Y and N to yes and no in"Sold as Vacant" field
+
+SELECT DISTINCT(SoldAsVacant), COUNT(SoldAsVacant)
+FROM Homes..homedata
+GROUP BY SoldAsVacant
+ORDER BY 2
+
+
+SELECT SoldAsVacant,
+CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
+     WHEN SoldAsVacant = 'N' THEN 'No'
+	 ELSE SoldAsVacant
+	 END
+FROM Homes..homedata
+
+UPDATE Homes..homedata
+SET SoldAsVacant = 
+CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
+     WHEN SoldAsVacant = 'N' THEN 'No'
+	 ELSE SoldAsVacant
+	 END
+FROM Homes..homedata
+
+
+-----------------------------------------------------------------------------
+--Remove Duplicates
+
+
+SELECT * 
+FROM Homes..homedata
+
+WITH Row_numCTE AS(
+SELECT *,
+	ROW_NUMBER() OVER(
+	PARTITION BY ParcelID,
+		         PropertyAddress,
+				 SalePrice,
+				 SaleDate,
+				 LegalReference
+				 ORDER BY 
+				      UniqueID
+					  ) row_num
+			
+FROM Homes..homedata
+)
+
+DELETE
+FROM Row_numCTE
+WHERE Row_num > 1
+
+
+---------------------------------------------------------------------
+--Delete unused columns
+
+
+
+SELECT * 
+FROM Homes..homedata
+
+ALTER TABLE Homes..homedata
+DROP COLUMN OwnerAddress, TaxDistrict, PropertyAddress
+
+
+ALTER TABLE Homes..homedata
+DROP COLUMN SaleDate
